@@ -5,6 +5,7 @@ import { Task } from './tasks.entity';
 import { Repository } from 'typeorm';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskStatus } from './tasks-statuses.enum';
+import { GetFilterTasksDto } from './dto/get-filter-tasks.dto';
 // import { Task, TaskStatus } from './tasks.model';
 // import { randomUUID } from 'crypto';
 // import { CreateTaskDto } from './dto/create-task.dto';
@@ -33,9 +34,23 @@ export class TasksService {
     return task;
   }
 
-  // getAllTasks(): Task[] {
-  //   return this.tasks;
-  // }
+  async getAllTasks(queryDto: GetFilterTasksDto): Promise<Task[]> {
+    const { status, search } = queryDto;
+    const query = this.taskRepository.createQueryBuilder('task');
+
+    if (status) {
+      query.andWhere('task.status = :status', { status });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(task.title LIKE :search OR task.description LIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+    const tasks = await query.getMany();
+    return tasks;
+  }
   // getTasks(queryDto: GetFilterTasksDto): Task[] {
   //   const { status, search } = queryDto;
   //   let tasks = this.getAllTasks();
@@ -49,30 +64,16 @@ export class TasksService {
   //   }
   //   return tasks;
   // }
-  // getSingleTask(id: string) {
-  //   const found = this.tasks.find((task) => task.id === id);
-  //   if (!found) throw new NotFoundException(`Task with ID ${id} not found.`);
-  //   return found;
-  // }
-  // createTask(createTaskDto: CreateTaskDto): Task {
-  //   const { title, description } = createTaskDto;
-  //   const newTask = {
-  //     id: randomUUID(),
-  //     title,
-  //     description,
-  //     status: TaskStatus.OPEN,
-  //   };
-  //   this.tasks.push(newTask);
-  //   return newTask;
-  // }
-  // updateTaskStatus(id: string, status: TaskStatus): Task {
-  //   const foundTask = this.getSingleTask(id);
-  //   foundTask.status = status;
-  //   return foundTask;
-  // }
-  // deleteSingleTask(id: string): void {
-  //   const found = this.getSingleTask(id);
-  //   const foundIndex = this.tasks.indexOf(found);
-  //   this.tasks.splice(foundIndex, 1);
-  // }
+  async updateTaskStatus(id: number, status: TaskStatus): Promise<Task> {
+    const foundTask = await this.getSingleTask(id);
+    foundTask.status = status;
+    await foundTask.save();
+    return foundTask;
+  }
+  async deleteSingleTask(id: number): Promise<void> {
+    const deletedTask = await this.taskRepository.delete(id);
+    if (deletedTask.affected === 0) {
+      throw new NotFoundException(`Task with ID ${id} not found.`);
+    }
+  }
 }
