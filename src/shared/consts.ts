@@ -1,0 +1,1 @@
+export const DUPLICATE_USERNAME_CODE = '23505';
