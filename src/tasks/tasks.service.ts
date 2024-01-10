@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskStatus } from './tasks-statuses.enum';
 import { GetFilterTasksDto } from './dto/get-filter-tasks.dto';
+import { User } from 'src/auth/auth.entity';
 // import { Task, TaskStatus } from './tasks.model';
 // import { randomUUID } from 'crypto';
 // import { CreateTaskDto } from './dto/create-task.dto';
@@ -24,19 +25,23 @@ export class TasksService {
     return task;
   }
 
-  async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
+  async createTask(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
     const { title, description } = createTaskDto;
     const task = new Task();
     task.title = title;
     task.description = description;
     task.status = TaskStatus.OPEN;
+    task.user = user;
     await this.taskRepository.save(task);
+    delete task.user;
     return task;
   }
 
-  async getAllTasks(queryDto: GetFilterTasksDto): Promise<Task[]> {
+  async getAllTasks(queryDto: GetFilterTasksDto, user: User): Promise<Task[]> {
     const { status, search } = queryDto;
     const query = this.taskRepository.createQueryBuilder('task');
+
+    query.where('task.userId = :userId', { userId: user.id });
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -51,19 +56,7 @@ export class TasksService {
     const tasks = await query.getMany();
     return tasks;
   }
-  // getTasks(queryDto: GetFilterTasksDto): Task[] {
-  //   const { status, search } = queryDto;
-  //   let tasks = this.getAllTasks();
-  //   if (status) {
-  //     tasks = tasks.filter((task) => task.status === status);
-  //   }
-  //   if (search) {
-  //     tasks = tasks.filter((task) => {
-  //       task.title.includes(search) || task.description.includes(search);
-  //     });
-  //   }
-  //   return tasks;
-  // }
+
   async updateTaskStatus(id: number, status: TaskStatus): Promise<Task> {
     const foundTask = await this.getSingleTask(id);
     foundTask.status = status;
