@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { TaskRepository } from './tasks.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './tasks.entity';
@@ -14,13 +19,19 @@ import { User } from 'src/auth/auth.entity';
 
 @Injectable()
 export class TasksService {
+  private logger = new Logger('TasksService');
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: TaskRepository,
   ) {}
 
-  async getSingleTask(id: number): Promise<Task> {
-    const task = await this.taskRepository.findOneBy({ id });
+  async getSingleTask(id: number, user: User): Promise<Task> {
+    const task = await this.taskRepository.findOne({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
     if (!task) throw new NotFoundException(`Task with ID ${id} not found.`);
     return task;
   }
@@ -32,7 +43,15 @@ export class TasksService {
     task.description = description;
     task.status = TaskStatus.OPEN;
     task.user = user;
-    await this.taskRepository.save(task);
+    try {
+      await this.taskRepository.save(task);
+    } catch (err) {
+      this.logger.error(
+        `Failed to create task for user "${user.username}", Data: ${createTaskDto}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException();
+    }
     delete task.user;
     return task;
   }
@@ -53,18 +72,33 @@ export class TasksService {
         { search: `%${search}%` },
       );
     }
-    const tasks = await query.getMany();
-    return tasks;
+    try {
+      const tasks = await query.getMany();
+      return tasks;
+    } catch (err) {
+      this.logger.error(
+        `Failed to get tasks for user "${user.username}", Queries: ${queryDto}`,
+        err.stack,
+      );
+      throw new InternalServerErrorException();
+    }
   }
 
-  async updateTaskStatus(id: number, status: TaskStatus): Promise<Task> {
-    const foundTask = await this.getSingleTask(id);
+  async updateTaskStatus(
+    id: number,
+    status: TaskStatus,
+    user: User,
+  ): Promise<Task> {
+    const foundTask = await this.getSingleTask(id, user);
     foundTask.status = status;
     await foundTask.save();
     return foundTask;
   }
-  async deleteSingleTask(id: number): Promise<void> {
-    const deletedTask = await this.taskRepository.delete(id);
+  async deleteSingleTask(id: number, user: User): Promise<void> {
+    const deletedTask = await this.taskRepository.delete({
+      id,
+      userId: user.id,
+    });
     if (deletedTask.affected === 0) {
       throw new NotFoundException(`Task with ID ${id} not found.`);
     }
