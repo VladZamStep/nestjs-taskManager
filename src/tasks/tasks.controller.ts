@@ -15,7 +15,13 @@ import {
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { Task } from './tasks.entity';
-import { ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskStatusValidationPipe } from './pipes/task-status-validation.pipe';
 import { TaskStatus } from './tasks-statuses.enum';
@@ -26,12 +32,16 @@ import { GetUser } from 'src/auth/get-user.decorator';
 // import { CreateTaskDto } from './dto/create-task.dto';
 // import { GetFilterTasksDto } from './dto/get-filter-tasks.dto';
 
+@ApiTags('Tasks')
+@ApiBearerAuth()
 @Controller('tasks')
 @UseGuards(AuthGuard())
 export class TasksController {
   private logger = new Logger('TasksController');
   constructor(private tasksService: TasksService) {}
   @Get()
+  @ApiQuery({ name: 'status', required: false, enum: TaskStatus })
+  @ApiQuery({ name: 'search', required: false, type: String })
   getTasks(
     @Query(ValidationPipe) queryDto: GetFilterTasksDto,
     @GetUser() user: User,
@@ -54,6 +64,11 @@ export class TasksController {
 
   @Post()
   @UsePipes(ValidationPipe)
+  // @ApiBody({ type: CreateTaskDto })
+  @ApiResponse({
+    status: 201,
+    description: 'The record has been successfully created.',
+  })
   createTask(
     @Body() createTaskDto: CreateTaskDto,
     @GetUser() user: User,

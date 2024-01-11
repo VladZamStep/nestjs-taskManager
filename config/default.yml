@@ -1,4 +1,5 @@
 server:
+  host: 'localhost'
   port: 3000
 
 db:
@@ -7,4 +8,4 @@ db:
   database: 'test_db'
 
 jwt:
-  expireIn: 3600
+  expiresIn: 3600

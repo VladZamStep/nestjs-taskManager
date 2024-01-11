@@ -4,6 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
 import * as config from 'config';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJson = require('../package.json');
+
 async function bootstrap() {
   const serverConfig = config.get('server');
 
@@ -17,8 +20,10 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Tasks example')
     .setDescription('The tasks API description')
-    .setVersion('1.0')
-    .addTag('tasks')
+    .setVersion(packageJson.version)
+    .addBearerAuth()
+    .addTag('Auth')
+    .addTag('Tasks')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -27,5 +32,6 @@ async function bootstrap() {
   const port = process.env.PORT || serverConfig.port;
   await app.listen(port);
   logger.log(`Application listening on port ${port}`);
+  logger.log(`Swagger started at: http://${serverConfig.host}:${port}/api`);
 }
 bootstrap();
